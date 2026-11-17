@@ -1,0 +1,1113 @@
+{%extends 'base.html'%}
+{% load static %}
+{%block title%} Create Journal {%endblock%}
+
+{% block pagetitle %}Journal Voucher {% endblock %}
+
+{% block content %}
+{% include 'components/title_bar.html' with title=' Journal Voucher' %}
+
+<style>
+    input {
+        border: 0;
+        outline: 0;
+        border-bottom: 2px solid rgb(94, 89, 89);
+        width: 100%;
+        letter-spacing: 1px;
+    }
+
+    input:focus {
+        border-color: rgb(71, 46, 214);
+    }
+
+    .adder:hover {
+        cursor: pointer;
+    }
+</style>
+
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-danger col-12" role="alert">
+            {{message}}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card">
+
+    <div class="card-header p-4 m-auto">
+        <center>
+            <h2>Journal Voucher</h2> <br>
+        </center>
+    </div>
+    <div class="card-body pt-0">
+        <div class="row">
+            <div class="table-responsive">
+                <form>
+                    <select id="hidden_subledger" hidden>
+                        <option value="------" selected>-----</option>
+                        {% for sub in sub_ledgers%}
+                        <option data-ledgerid="{{sub.ledger.pk}}" value={{sub.id}}>{{sub.sub_ledger_name}}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+                <form method="POST">
+                        <div class="container">
+                            <div class="row justify-content-center">
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <center><label for="entry_date">Entry Date:</label></center>
+                                        <input type="date" class="form-control" name="entry_date" id="entry_date" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <table class="table table-bordered align-middle " id="kt_customers_table">
+
+                        <thead>
+                            <tr>
+                                <th class="col-md-2">Ledger</th>
+                                <th class="col-md-2">Sub Ledger</th>
+                                <th class="col-md-3">Particulars</th>
+                                <th class="col-md-2">Debit(Rs) &nbsp; <i class="text-success fas fa-plus fa-lg adder"
+                                        onclick="addDebitRow()"></i> </th>
+
+                                <th class="col-md-2">Credit(Rs) &nbsp; <i class="text-success fas fa-plus fa-lg adder"
+                                        onclick="addCreditRow()"></i> </th>
+                                <th class="col-md-5">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="fw-bold text-gray-600">
+                            {% csrf_token %}
+
+                        <tbody id="form-debit-row">
+                            <tr>
+                                <td class="col-md-2">
+                                    <select class="ledger-select form-control" id="1_ledger_select" name="debit_ledger"
+                                        required onchange="ledgerChange(this)">
+                                        <option value="------" selected>-----</option>
+                                        {% for ledger in ledgers%}
+                                        <option value={{ledger.id}}>{{ledger.ledger_name}}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="col-md-2">
+                                    <select class="subledger-select form-control" id="1_subledger_select"
+                                        name="debit_subledger">
+                                        <option value="------" selected>-----</option>
+                                        {% for sub in sub_ledgers%}
+                                        <option data-ledgerid="{{sub.ledger.pk}}" value={{sub.id}}>
+                                            {{sube}}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="col-md-3"><input type="text" data-side="dr" id="1_particular_input"
+                                        name="debit_particular" required></td>
+                                <td class="col-md-2"><input type="number"  step="0.01" class="debit_subtotal fw-bolder"
+                                        onkeyup="calculateDebitTotal()" min="0" name="debit_amount" required></td>
+                                <td class="col-md-2">x x x x x</td>
+                            </tr>
+                        </tbody>
+
+                        <tbody id="form-credit-row">
+                            <tr>
+                                <td class="col-md-2">
+                                    <select class="ledger-select form-control" id="2_ledger_select" name="credit_ledger"
+                                        required onchange="ledgerChange(this)">
+                                        <option value="------" selected>-----</option>
+                                        {% for ledger in ledgers%}
+                                        <option value={{ledger.id}}>{{ledger.ledger_name}}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="col-md-2">
+                                    <select class="subledger-select form-control" id="2_subledger_select"
+                                        name="credit_subledger">
+                                        <option value="------" selected>-----</option>
+                                        {% for sub in sub_ledgers%}
+                                        <option value={{sub.id}}>{{sub}}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="col-md-4"><input type="text" data-side="cr" id="2_particular_input"
+                                        name="credit_particular" required></td>
+                                <td class="col-md-2">x x x x x</td>
+                                <td class="col-md-2"><input type="number" step="0.01" class="credit_subtotal fw-bolder"
+                                        onkeyup="calculateCreditTotal()" min="0" name="credit_amount" required></td>
+                            </tr>
+                        </tbody>
+
+                        <div class="row">
+                            <tr>
+                                <td class="col-md-2">Total</td>
+                                <td class="col-md-2"></td>
+                                <td class="col-md-3"></td>
+                                <td class="col-md-2 pt-5">
+                                    <p class="text-primary fw-bolder" id="total-debit">0</p>
+                                </td>
+                                <td class="col-md-2 pt-5">
+                                    <p class="text-primary fw-bolder" id="total-credit">0</p></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="form-group m-2">
+                                        <label for="narration">Narration:</label>
+                                        <textarea name="narration" id="narration" rows="5" cols="50" placeholder="Enter narration"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Submit</button>
+                                </td>
+                            </tr>
+                        </div>
+                        </tbody>
+                    </table>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% block footer %}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    let debitRowCounter = 1;
+    let creditRowCounter = 1;
+    let counter = 3;
+    let isNavigatingProgrammatically = false;
+    let isSubmitting = false; // Flag to prevent double submission
+
+    function getDefaultSelectedOption() {
+        let opt = document.createElement('option');
+        opt.value = '-----'
+        opt.innerHTML = '-----'
+        opt.selected = true
+        return opt
+    }
+
+    $(document).ready(function () {
+        $('.ledger-select').select2({ width: '100%' });
+        $('.subledger-select').select2({ width: '100%', tags: true });
+        
+        // Add keyboard navigation with hover effect
+        initializeSelect2KeyboardNavigation();
+        
+        // Initialize Enter key navigation
+        initializeEnterKeyNavigation();
+        
+        // Prevent double form submission
+        initializeFormSubmissionHandler();
+    });
+
+    // Update the submit validation to check for negative amounts
+    function initializeFormSubmissionHandler() {
+        $('form').on('submit', function(e) {
+            if (isSubmitting) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+            }
+
+            // Validate that debit and credit totals are equal
+            const debitTotal = parseFloat($('#total-debit').text()) || 0;
+            const creditTotal = parseFloat($('#total-credit').text()) || 0;
+            
+            // Check if totals are valid numbers
+            if (isNaN(debitTotal) || isNaN(creditTotal)) {
+                e.preventDefault();
+                showValidationError("Please enter valid amounts for debit and credit");
+                return false;
+            }
+            
+            // Check if any credit amount is negative
+            let hasNegativeCredit = false;
+            $('input.credit_subtotal').each(function() {
+                const value = parseFloat($(this).val()) || 0;
+                if (value < 0) {
+                    hasNegativeCredit = true;
+                    $(this).addClass('is-invalid');
+                }
+            });
+            
+            if (hasNegativeCredit) {
+                e.preventDefault();
+                showValidationError("Credit amounts cannot be negative. Please adjust your entries.");
+                return false;
+            }
+            
+            // Check if any debit amount is negative
+            let hasNegativeDebit = false;
+            $('input.debit_subtotal').each(function() {
+                const value = parseFloat($(this).val()) || 0;
+                if (value < 0) {
+                    hasNegativeDebit = true;
+                    $(this).addClass('is-invalid');
+                }
+            });
+            
+            if (hasNegativeDebit) {
+                e.preventDefault();
+                showValidationError("Debit amounts cannot be negative. Please adjust your entries.");
+                return false;
+            }
+            
+            // Check if totals are equal (allowing for small floating point differences)
+            const difference = Math.abs(debitTotal - creditTotal);
+            const tolerance = 0.01; // Allow 0.01 difference due to floating point arithmetic
+            
+            if (difference > tolerance) {
+                e.preventDefault();
+                showValidationError(`Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(2)}) totals must be equal. Difference: ${difference.toFixed(2)}`);
+                return false;
+            }
+            
+            isSubmitting = true;
+            
+            // Disable the submit button to prevent double clicks
+            $('button[type="submit"]').prop('disabled', true).html(`
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Submitting...
+            `);
+            
+            // Re-enable after 5 seconds in case submission fails
+            setTimeout(() => {
+                if (isSubmitting) {
+                    isSubmitting = false;
+                    $('button[type="submit"]').prop('disabled', false).text('Submit');
+                }
+            }, 5000);
+            
+            return true;
+        });
+    }
+
+// Function to show validation error
+function showValidationError(message) {
+    // Remove any existing validation errors
+    $('.validation-error').remove();
+    
+    // Create error message
+    const errorDiv = $(`
+        <div class="alert alert-danger alert-dismissible fade show validation-error" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 10000; min-width: 400px;">
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <strong>Validation Error!</strong><br>${message}
+        </div>
+    `);
+    
+    $('body').append(errorDiv);
+    
+    // Highlight the totals that don't match
+    const debitTotal = parseFloat($('#total-debit').text()) || 0;
+    const creditTotal = parseFloat($('#total-credit').text()) || 0;
+    
+    if (debitTotal > creditTotal) {
+        $('#total-debit').addClass('text-danger fw-bold');
+        $('#total-credit').addClass('text-warning fw-bold');
+    } else if (creditTotal > debitTotal) {
+        $('#total-credit').addClass('text-danger fw-bold');
+        $('#total-debit').addClass('text-warning fw-bold');
+    }
+    
+    // Scroll to totals if they're not visible
+    $('html, body').animate({
+        scrollTop: $('.table-responsive').offset().top - 100
+    }, 500);
+    
+    // Auto remove after 10 seconds
+    setTimeout(() => {
+        errorDiv.alert('close');
+        // Remove highlight after error is closed
+        setTimeout(() => {
+            $('#total-debit, #total-credit').removeClass('text-danger text-warning fw-bold');
+        }, 300);
+    }, 10000);
+}
+
+    // Function to initialize keyboard navigation for all Select2 elements
+    function initializeSelect2KeyboardNavigation() {
+        $('.ledger-select, .subledger-select').each(function() {
+            const $select = $(this);
+            
+            // When Select2 is opened
+            $select.on('select2:open', function() {
+                setTimeout(function() {
+                    const $dropdown = $('.select2-container--open .select2-results__options');
+                    
+                    if ($dropdown.length) {
+                        // Handle keyboard navigation
+                        $dropdown.off('keyup.select2-keyboard').on('keyup.select2-keyboard', function(e) {
+                            handleKeyboardNavigation(e, $dropdown);
+                        });
+                        
+                        // Also handle keydown for arrow keys
+                        $dropdown.off('keydown.select2-keyboard').on('keydown.select2-keyboard', function(e) {
+                            handleKeyboardNavigation(e, $dropdown);
+                        });
+                    }
+                }, 0);
+            });
+        });
+    }
+
+    // Function to handle keyboard navigation and apply hover effect
+    function handleKeyboardNavigation(e, $dropdown) {
+        const $options = $dropdown.find('.select2-results__option');
+        const $highlighted = $dropdown.find('.select2-results__option--highlighted');
+        
+        // Remove any custom hover classes first
+        $options.removeClass('keyboard-hover');
+        
+        // If there's a highlighted option, apply our custom hover class
+        if ($highlighted.length) {
+            $highlighted.addClass('keyboard-hover');
+        }
+    }
+
+    // Initialize Enter key navigation for all fields
+    function initializeEnterKeyNavigation() {
+        // Handle Enter key on regular input fields only
+        $(document).on('keydown', 'input[type="text"], input[type="number"], textarea', function(e) {
+            if (e.which === 13 && !isNavigatingProgrammatically) { // Enter key
+                e.preventDefault();
+                isNavigatingProgrammatically = true;
+                navigateToNextField($(this));
+                setTimeout(() => {
+                    isNavigatingProgrammatically = false;
+                }, 100);
+            }
+        });
+
+
+        // Handle Enter key on Select2 dropdowns
+        $(document).on('keydown', '.select2-selection', function(e) {
+            if (e.which === 13 && !isNavigatingProgrammatically) {
+                console.log("Enter pressed on Select2");
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const $select = $(this).closest('.select2-container').prev('select');
+                const select2 = $select.data('select2');
+                
+                // Close the dropdown if it's open
+                if (select2 && select2.isOpen()) {
+                    $select.select2('close');
+                    console.log("Select2 dropdown closed");
+                }
+                
+                // Small delay to ensure Select2 closes completely
+                setTimeout(() => {
+                    if (!isNavigatingProgrammatically) {
+                        isNavigatingProgrammatically = true;
+                        navigateToNextField($select);
+                        setTimeout(() => {
+                            isNavigatingProgrammatically = false;
+                        }, 100);
+                    }
+                }, 100); // Increased delay to ensure dropdown closes
+                
+                return false;
+            }
+        });
+        
+        // Handle Select2 selections
+        $(document).on('select2:select', '.ledger-select, .subledger-select', function(e) {
+            console.log("Select2 option selected");
+            
+            setTimeout(() => {
+                if (!isNavigatingProgrammatically) {
+                    isNavigatingProgrammatically = true;
+                    navigateToNextField($(this));
+                    setTimeout(() => {
+                        isNavigatingProgrammatically = false;
+                    }, 100);
+                }
+            }, 150);
+        });
+
+        // Additional: Handle Select2 close event as backup
+        $(document).on('select2:close', '.subledger-select, .ledger-select', function(e) {
+            console.log("Select2 closed manually");
+            // This ensures the dropdown is closed even if the above method fails
+        });
+        
+        // Prevent Enter key from triggering form submission
+        $(document).on('keypress', 'input, textarea', function(e) {
+            if (e.which === 13) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+
+
+
+
+    // Function to navigate to next field based on current field
+    function navigateToNextField($currentField) {
+        // Don't navigate if we're already in the process of navigating
+        console.log(isNavigatingProgrammatically)
+        // if (isNavigatingProgrammatically) return;
+        
+        const currentFieldType = getFieldType($currentField);
+        const currentRow = getCurrentRow($currentField);
+        console.log("pressed currentFieldType", currentFieldType)
+        let nextField;
+        
+        switch(currentFieldType) {
+
+            case 'debit_ledger':
+                nextField = $(`#${currentRow}_subledger_select`).next('.select2-container').find('.select2-selection');
+                break;
+
+
+            case 'debit_subledger':
+                // Get all debit rows
+                const debitRows = $('#form-debit-row tr');
+                console.log("Total debit rows:", debitRows.length);
+                
+                // Find the current row
+                const currentRowElement = $(`#${currentRow}_debit_row_counter`);
+                console.log("Current row element:", currentRowElement.length);
+                
+                // Find the next row
+                const nextRow = currentRowElement.next('tr');
+                console.log("Next row:", nextRow.length);
+                
+                if (nextRow.length > 0) {
+                    // Get the next row's ID
+                    const nextRowId = nextRow.attr('id').split('_')[0];
+                    console.log("Next row ID:", nextRowId);
+                    
+                    nextField = $(`#${nextRowId}_ledger_select`).next('.select2-container').find('.select2-selection');
+                }
+                else {
+                    // Go to first credit ledger
+                    nextField = $('#form-credit-row tr:first select[name="credit_ledger"]').next('.select2-container').find('.select2-selection');
+                }
+                break;
+                
+            case 'credit_ledger':
+                nextField = $(`#${currentRow}_subledger_select`).next('.select2-container').find('.select2-selection');
+                break;
+                
+            case 'credit_subledger':
+                // Check if there's another credit row
+                const creditRows = $('#form-credit-row tr');
+                const currentCreditIndex = getRowIndex(currentRow);
+                if (currentCreditIndex < creditRows.length - 1) {
+                    // Go to next credit row's ledger
+                    const nextRowId = getRowIdFromIndex(creditRows, currentCreditIndex + 1, 'credit');
+                    nextField = $(`#${nextRowId}_ledger_select`).next('.select2-container').find('.select2-selection');
+                } else {
+                    // Go to debit amounts
+                    const firstDebitAmount = $('#form-debit-row tr:first input.debit_subtotal');
+                    nextField = firstDebitAmount;
+                }
+                break;
+                
+            case 'debit_amount':
+                // Check if there's another debit amount
+                const allDebitAmounts = $('input.debit_subtotal');
+                const currentDebitAmountIndex = allDebitAmounts.index($currentField);
+                if (currentDebitAmountIndex < allDebitAmounts.length - 1) {
+                    // Go to next debit amount
+                    nextField = allDebitAmounts.eq(currentDebitAmountIndex + 1);
+                    console.log("I got into debit block") 
+                } else {
+                    // Go to credit amounts
+                    const firstCreditAmount = $('#form-credit-row tr:first input.credit_subtotal');
+                    nextField = firstCreditAmount;
+                    console.log("I got into debit block now going to credit block")                    
+                    // AUTO-FILL CREDIT AMOUNT WITH DEBIT TOTAL
+                    autoFillCreditAmount();
+                }
+                break;
+                
+            case 'credit_amount':
+                // Check if there's another credit amount
+                const allCreditAmounts = $('input.credit_subtotal');
+                const currentCreditAmountIndex = allCreditAmounts.index($currentField);
+                if (currentCreditAmountIndex < allCreditAmounts.length - 1) {
+                    // Go to next credit amount
+                    nextField = allCreditAmounts.eq(currentCreditAmountIndex + 1);
+                    console.log("I got into credit block but could not go to narration block")
+                } else {
+                    // Go to submit button
+                    // nextField = $('button[type="submit"]');
+                    // Go to narration field
+
+                    console.log("I got into narration block")
+                    nextField = $('#narration');
+                }
+                break;
+
+            case 'narration':
+                // After narration, go to submit button
+                nextField = $('button[type="submit"]');
+                break;
+                
+            default:
+                // Default behavior - try to find next input/select
+                const allFields = $('select, input, textarea').not(':hidden');
+                const currentIndex = allFields.index($currentField);
+                if (currentIndex < allFields.length - 1) {
+                    nextField = allFields.eq(currentIndex + 1);
+                } else {
+                    nextField = $('button[type="submit"]');
+                }
+        }
+        
+        // Focus on the next field
+        if (nextField && nextField.length) {
+            if (nextField.hasClass('select2-selection')) {
+                // For Select2 fields
+                nextField.closest('.select2-container').prev('select').select2('open');
+            } else if (nextField.is('button')) {
+                // For submit button - just focus, don't trigger click
+                nextField.focus();
+            } else {
+                // For regular input fields
+                nextField.focus();
+                if (nextField.is('input[type="number"]')) {
+                    nextField.select(); // Select text for easier editing
+                }
+                // For textarea, you might want to position cursor at the end
+                if (nextField.is('textarea')) {
+                    const length = nextField.val().length;
+                    nextField[0].setSelectionRange(length, length);
+                }
+            }
+        }
+    }
+
+    // Function to auto-fill credit amount with debit total
+    function autoFillCreditAmount() {
+        const totalDebit = parseFloat($('#total-debit').text()) || 0;
+        const creditAmountFields = $('input.credit_subtotal');
+        
+        if (creditAmountFields.length === 1 && totalDebit > 0) {
+            // If there's only one credit amount field, auto-fill it with the total debit
+            creditAmountFields.val(totalDebit.toFixed(2));
+            calculateCreditTotal(); // Update the credit total display
+            
+            // Show a small notification to the user
+            showAutoFillNotification(totalDebit);
+        }
+    }
+
+    // Function to show auto-fill notification
+    function showAutoFillNotification(amount) {
+        // Remove any existing notifications
+        $('.auto-fill-notification').remove();
+        
+        // Create a small notification
+        const notification = $(`
+            <div class="alert alert-info alert-dismissible fade show auto-fill-notification" style="position: fixed; top: 20px; right: 20px; z-index: 10000; min-width: 300px;">
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <strong>Auto-filled!</strong> Credit amount set to ${amount.toFixed(2)} (Debit Total)
+            </div>
+        `);
+        
+        $('body').append(notification);
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            notification.alert('close');
+        }, 3000);
+    }
+
+    // Helper function to get field type
+    function getFieldType($field) {
+        if ($field.is('select[name="debit_ledger"]')) return 'debit_ledger';
+        if ($field.is('select[name="debit_subledger"]')) return 'debit_subledger';
+        if ($field.is('select[name="credit_ledger"]')) return 'credit_ledger';
+        if ($field.is('select[name="credit_subledger"]')) return 'credit_subledger';
+        if ($field.is('input.debit_subtotal')) return 'debit_amount';
+        if ($field.is('input.credit_subtotal')) return 'credit_amount';
+        if ($field.is('textarea[name="narration"]')) return 'narration';
+        return 'unknown';
+    }
+
+    // Helper function to get current row identifier
+    function getCurrentRow($field) {
+        const id = $field.attr('id') || '';
+        const match = id.match(/^(\d+)_/);
+        return match ? match[1] : '';
+    }
+
+    // Helper function to get row index
+    function getRowIndex(rowId) {
+        const rows = $(`[id*="${rowId}_"]`).closest('tr');
+        return rows.closest('tbody').find('tr').index(rows.first());
+    }
+
+    // Helper function to get row ID from index
+    function getRowIdFromIndex(rows, index, type) {
+        const row = rows.eq(index);
+        const id = row.attr('id');
+        return id ? id.split('_')[0] : '';
+    }
+
+    // Re-initialize keyboard navigation when new rows are added
+    function addDebitRow() {
+        const row = `
+        <tr id="${debitRowCounter}_debit_row_counter">
+            <td class="col-md-2">
+                <select class="ledger-select form-control" name="debit_ledger" required id="${counter}_ledger_select" onchange="ledgerChange(this)">
+                    <option value="------" selected>-----</option>
+                    {% for ledger in ledgers%}
+                        <option value={{ledger.id}}>{{ledger.ledger_name}}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td class="col-md-2">
+                <select class="subledger-select form-control" name="debit_subledger" id="${counter}_subledger_select">
+                    <option value="------" selected>-----</option>
+                    {% for sub in sub_ledgers%}
+                        <option value={{sub.id}}>{{sub.sub_ledger_name}}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td class="col-md-3"><input type="text" data-side="dr" id="${counter}_particular_input" name="debit_particular" required></td>
+            <td class="col-md-2"><input type="number" step="0.01" min="0" class="debit_subtotal fw-bolder" onkeyup="calculateDebitTotal()" name="debit_amount" required></td>
+            <td class="col-md-2">x x x x x</td>
+            <td class="col-md-5"><button type="button" class="btn btn-danger btn-sm" onclick="deleteDebitRow(${debitRowCounter})">X</button></td>
+        </tr>
+        `;
+        $('#form-debit-row').append(row);
+
+        $(`#${counter}_ledger_select`).select2({ width: '100%' });
+        $(`#${counter}_subledger_select`).select2({ width: '100%', tags: true });
+        
+        // Re-initialize keyboard navigation for new elements
+        initializeSelect2KeyboardNavigation();
+
+        counter++;
+        debitRowCounter++;
+    }
+
+    function addCreditRow() {
+        const row = `
+        <tr id="${creditRowCounter}_credit_row_counter">
+            <td class="col-md-2">
+                <select class="ledger-select form-control" name="credit_ledger" required id="${counter}_ledger_select" onchange="ledgerChange(this)">
+                    <option value="------" selected>-----</option>
+                    {% for ledger in ledgers%}
+                        <option value={{ledger.id}}>{{ledger.ledger_name}}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td class="col-md-2">
+                <select class="subledger-select form-control" name="credit_subledger" id="${counter}_subledger_select">
+                    <option value="------" selected>-----</option>
+                    {% for sub in sub_ledgers%}
+                        <option value={{sub.id}}>{{sub.sub_ledger_name}}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td class="col-md-4"><input type="text" data-side="cr" id="${counter}_particular_input" name="credit_particular" required></td>
+            <td class="col-md-2">x x x x x</td>
+            <td class="col-md-2"><input type="number" step="0.01" min="0" class="credit_subtotal fw-bolder" onkeyup="calculateCreditTotal()" name="credit_amount" required></td>
+            <td class="col-md-5"><button type="button" class="btn btn-danger btn-sm" onclick="deleteCreditRow(${creditRowCounter})">X</button></td>
+        </tr>
+        `;
+        $('#form-credit-row').append(row);
+
+        $(`#${counter}_ledger_select`).select2({ width: '100%' });
+        $(`#${counter}_subledger_select`).select2({ width: '100%', tags: true });
+        
+        // Re-initialize keyboard navigation for new elements
+        initializeSelect2KeyboardNavigation();
+
+        // NEW: Clear the previous last credit row's amount when adding new credit row
+        clearPreviousLastCreditRow();
+
+        counter++;
+        creditRowCounter++;
+    }
+
+
+    // Update the clearPreviousLastCreditRow function
+    function clearPreviousLastCreditRow() {
+        // Get all credit amount input fields
+        let allCreditAmounts = document.querySelectorAll('input.credit_subtotal');
+        
+        if (allCreditAmounts.length > 1) {
+            // Get the second last credit amount field (the one before the newly added one)
+            let previousLastCredit = allCreditAmounts[allCreditAmounts.length - 2];
+            
+            // Calculate debit total
+            let debitTotal = parseFloat(document.getElementById('total-debit').textContent) || 0;
+            
+            if (debitTotal > 0) {
+                // Calculate sum of all earlier credit rows
+                let sumEarlierCredits = 0;
+                for (let i = 0; i < allCreditAmounts.length - 2; i++) {
+                    sumEarlierCredits += parseFloat(allCreditAmounts[i].value) || 0;
+                }
+                
+                // Distribute the remaining amount between the previous last and new last rows
+                let remainingAmount = debitTotal - sumEarlierCredits;
+                
+                if (remainingAmount >= 0) {
+                    // Split remaining amount equally or give preference
+                    let splitAmount = remainingAmount / 2;
+                    previousLastCredit.value = splitAmount.toFixed(2);
+                    
+                    // Update the new last credit row
+                    let newLastCredit = allCreditAmounts[allCreditAmounts.length - 1];
+                    newLastCredit.value = splitAmount.toFixed(2);
+                    
+                    // Clear manual edit flags
+                    $(previousLastCredit).data('manually-edited', false);
+                    $(newLastCredit).data('manually-edited', false);
+                    
+                    // Update credit total
+                    calculateCreditTotal();
+                }
+            } else {
+                // If no debit total yet, just clear the previous last
+                previousLastCredit.value = '';
+            }
+        }
+    }
+
+    // Allow Enter key to open dropdown - but only when dropdown is closed
+    $(document).on('keypress', '.select2-container--default .select2-selection', function (e) {
+        if (e.which === 13) {
+            const $select = $(this).closest('.select2-container').prev('select');
+            if (!$select.data('select2').isOpen()) {
+                $select.select2('open');
+            }
+        }
+    });
+
+    function ledgerChange(sel) {
+        let selectedRowId = sel.id[0];
+        let ledgerId = sel.options[sel.selectedIndex].value;
+        let selectedSubledger = $(`#${selectedRowId}_subledger_select`);
+        selectedSubledger.empty();
+        let allSubLedgerOptions = document.getElementById('hidden_subledger').options;
+
+        ledgerId = parseInt(ledgerId);
+        if (ledgerId) {
+            let title = sel.options[sel.selectedIndex].innerHTML;
+            let particular = document.getElementById(`${selectedRowId}_particular_input`);
+            if (particular.dataset.side === 'dr') {
+                particular.value = `${title} a/c Dr`;
+            } else {
+                particular.value = `To ${title}`;
+            }
+
+            selectedSubledger.append(getDefaultSelectedOption());
+            allSubLedgerOptions.forEach(i => {
+                if (i.dataset.ledgerid == ledgerId) {
+                    let opt = document.createElement('option');
+                    opt.value = i.value;
+                    opt.dataset.ledgerid = i.dataset.ledgerid;
+                    opt.innerHTML = i.innerHTML;
+                    selectedSubledger.append(opt);
+                }
+            });
+        } else {
+            selectedSubledger.append(getDefaultSelectedOption());
+            allSubLedgerOptions.forEach(i => {
+                let opt = document.createElement('option');
+                opt.value = i.value;
+                opt.dataset.ledgerid = i.dataset.ledgerid;
+                opt.innerHTML = i.innerHTML;
+                selectedSubledger.append(opt);
+            });
+        }
+    }
+
+    function deleteDebitRow(rowId) {
+        let debitRow = document.getElementById('form-debit-row');
+        let row = document.getElementById(rowId + '_debit_row_counter');
+        debitRow.removeChild(row);
+        calculateDebitTotal();
+    }
+
+    // Update the deleteCreditRow function to handle manual edit flags
+    function deleteCreditRow(rowId) {
+        let creditRow = document.getElementById('form-credit-row');
+        let row = document.getElementById(rowId + '_credit_row_counter');
+        
+        // Check if we're deleting the last credit row
+        let isDeletingLastRow = isLastCreditRow(rowId);
+        
+        // If deleting a manually edited row that's not the last, clear the last row's manual flag
+        if (!isDeletingLastRow) {
+            const allCreditAmounts = document.querySelectorAll('input.credit_subtotal');
+            const lastCreditAmount = allCreditAmounts[allCreditAmounts.length - 1];
+            $(lastCreditAmount).data('manually-edited', false);
+            $(lastCreditAmount).removeClass('manually-edited');
+        }
+        
+        creditRow.removeChild(row);
+        calculateCreditTotal();
+        
+        // If we deleted the last credit row and there are still credit rows left,
+        // update the new last credit row with the remaining balance
+        if (isDeletingLastRow) {
+            let remainingCreditRows = document.querySelectorAll('#form-credit-row tr');
+            if (remainingCreditRows.length > 0) {
+                let debitTotal = parseFloat(document.getElementById('total-debit').textContent) || 0;
+                if (debitTotal > 0) {
+                    let allCreditAmounts = document.querySelectorAll('input.credit_subtotal');
+                    if (allCreditAmounts.length > 0) {
+                        let newLastCredit = allCreditAmounts[allCreditAmounts.length - 1];
+                        
+                        // Calculate sum of all other credits
+                        let sumOtherCredits = 0;
+                        for (let i = 0; i < allCreditAmounts.length - 1; i++) {
+                            sumOtherCredits += parseFloat(allCreditAmounts[i].value) || 0;
+                        }
+                        
+                        // Set last credit to balance the journal
+                        let lastCreditValue = debitTotal - sumOtherCredits;
+                        if (lastCreditValue >= 0) {
+                            newLastCredit.value = lastCreditValue.toFixed(2);
+                            // Clear manual edit flag for the new last row
+                            $(newLastCredit).data('manually-edited', false);
+                            $(newLastCredit).removeClass('manually-edited');
+                        }
+                        
+                        calculateCreditTotal();
+                    }
+                }
+            }
+        }
+    }
+
+
+    function isLastCreditRow(rowId) {
+        let allCreditRows = document.querySelectorAll('#form-credit-row tr');
+        if (allCreditRows.length === 0) return false;
+        
+        let lastRowId = allCreditRows[allCreditRows.length - 1].id.split('_')[0];
+        return lastRowId === rowId.toString();
+    }
+
+
+    function calculateDebitTotal() {
+        let allDrValues = document.querySelectorAll('.debit_subtotal');
+        let sum = 0;
+        for (let i of allDrValues) {
+            sum += parseFloat(i.value) || 0;
+        }
+        document.getElementById('total-debit').innerHTML = sum.toFixed(2);
+
+        // NEW: Auto-update the last credit row
+        autoUpdateLastCreditRow(sum);
+
+    }
+
+
+    function autoUpdateLastCreditRow(debitTotal) {
+        // Get all credit amount input fields
+        let allCreditAmounts = document.querySelectorAll('input.credit_subtotal');
+        
+        if (allCreditAmounts.length === 0) return;
+        
+        // Get the last credit amount field
+        let lastCreditAmount = allCreditAmounts[allCreditAmounts.length - 1];
+        
+        // Check if the last row has been manually edited
+        let isManuallyEdited = $(lastCreditAmount).data('manually-edited');
+        
+        // Only auto-update if not manually edited
+        if (!isManuallyEdited) {
+            // Calculate sum of all credit rows except the last one
+            let sumOtherCredits = 0;
+            for (let i = 0; i < allCreditAmounts.length - 1; i++) {
+                sumOtherCredits += parseFloat(allCreditAmounts[i].value) || 0;
+            }
+            
+            // Calculate what the last credit should be (debitTotal - sum of other credits)
+            let lastCreditValue = debitTotal - sumOtherCredits;
+            
+            // Only update if the calculated value is valid (non-negative)
+            if (lastCreditValue >= 0) {
+                lastCreditAmount.value = lastCreditValue.toFixed(2);
+            } else {
+                // If negative, set to 0 and show error
+                lastCreditAmount.value = "0.00";
+                showBalanceError(debitTotal, sumOtherCredits);
+            }
+            
+            // Update credit total
+            calculateCreditTotal();
+        }
+    }
+
+    function calculateCreditTotal() {
+        let allCrValues = document.querySelectorAll('.credit_subtotal');
+        let sum = 0;
+        for (let i of allCrValues) {
+            sum += parseFloat(i.value) || 0;
+        }
+        document.getElementById('total-credit').innerHTML = sum.toFixed(2);
+
+        // NEW: Check if we need to adjust the last credit row
+        checkAndAdjustCreditBalance();
+    }
+
+
+    // New function to check and adjust credit balance
+    function checkAndAdjustCreditBalance() {
+        const debitTotal = parseFloat($('#total-debit').text()) || 0;
+        const creditTotal = parseFloat($('#total-credit').text()) || 0;
+        const allCreditAmounts = document.querySelectorAll('input.credit_subtotal');
+        
+        if (allCreditAmounts.length === 0) return;
+        
+        // Get the last credit amount field
+        const lastCreditAmount = allCreditAmounts[allCreditAmounts.length - 1];
+        const isManuallyEdited = $(lastCreditAmount).data('manually-edited');
+        
+        // If last row hasn't been manually edited and there's a discrepancy
+        if (!isManuallyEdited && Math.abs(debitTotal - creditTotal) > 0.01) {
+            // Calculate sum of all credit rows except the last one
+            let sumOtherCredits = 0;
+            for (let i = 0; i < allCreditAmounts.length - 1; i++) {
+                sumOtherCredits += parseFloat(allCreditAmounts[i].value) || 0;
+            }
+            
+            // Calculate what the last credit should be
+            let lastCreditValue = debitTotal - sumOtherCredits;
+            
+            if (lastCreditValue >= 0) {
+                lastCreditAmount.value = lastCreditValue.toFixed(2);
+                // Recalculate credit total after adjustment
+                setTimeout(calculateCreditTotal, 10);
+            }
+        }
+    }
+
+
+    // New function to show balance error
+    function showBalanceError(debitTotal, enteredCredits) {
+        const difference = enteredCredits - debitTotal;
+        
+        // Remove any existing balance errors
+        $('.balance-error').remove();
+        
+        // Create error message
+        const errorDiv = $(`
+            <div class="alert alert-warning alert-dismissible fade show balance-error" style="position: fixed; top: 60px; right: 20px; z-index: 10000; min-width: 400px;">
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <strong>Balance Warning!</strong><br>
+                Total debit: ${debitTotal.toFixed(2)}<br>
+                Entered credits: ${enteredCredits.toFixed(2)}<br>
+                Excess: ${difference.toFixed(2)}<br>
+                Last credit row cannot be negative. Please reduce earlier credit amounts.
+            </div>
+        `);
+        
+        $('body').append(errorDiv);
+        
+        // Auto remove after 8 seconds
+        setTimeout(() => {
+            errorDiv.alert('close');
+        }, 8000);
+    }
+
+
+    // Track manual edits to credit rows
+    $(document).on('input', 'input.credit_subtotal', function() {
+        const allCreditAmounts = document.querySelectorAll('input.credit_subtotal');
+        const lastCreditAmount = allCreditAmounts[allCreditAmounts.length - 1];
+        
+        // Mark as manually edited if this is the last credit row
+        if (this === lastCreditAmount) {
+            $(this).data('manually-edited', true);
+            $(this).addClass('manually-edited');
+        } else {
+            // If editing earlier rows, clear the manual edit flag from last row
+            // so it can be auto-adjusted
+            $(lastCreditAmount).data('manually-edited', false);
+            $(lastCreditAmount).removeClass('manually-edited');
+        }
+        
+        // Check balance after a short delay to allow for the input to complete
+        setTimeout(checkAndAdjustCreditBalance, 100);
+    });
+
+
+// Function to update real-time balance status
+function updateBalanceStatus() {
+    const debitTotal = parseFloat($('#total-debit').text()) || 0;
+    const creditTotal = parseFloat($('#total-credit').text()) || 0;
+    const difference = Math.abs(debitTotal - creditTotal);
+    const tolerance = 0.01;
+    
+    const $status = $('#balance-status');
+    
+    if (debitTotal === 0 && creditTotal === 0) {
+        $status.hide();
+        return;
+    }
+    
+    if (difference <= tolerance) {
+        $status.show().html(`
+            <div class="alert alert-success py-2 mb-0">
+                <i class="fas fa-check-circle me-2"></i>
+                Journal is balanced! Debit: ${debitTotal.toFixed(2)} = Credit: ${creditTotal.toFixed(2)}
+            </div>
+        `);
+    } else if (creditTotal > debitTotal) {
+        $status.show().html(`
+            <div class="alert alert-warning py-2 mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Credit exceeds Debit by ${difference.toFixed(2)}. Last credit row will be adjusted.
+            </div>
+        `);
+    } else {
+        $status.show().html(`
+            <div class="alert alert-info py-2 mb-0">
+                <i class="fas fa-info-circle me-2"></i>
+                Debit: ${debitTotal.toFixed(2)} | Credit: ${creditTotal.toFixed(2)} | Difference: ${difference.toFixed(2)}
+            </div>
+        `);
+    }
+}
+
+// Call this function whenever totals change
+$(document).ready(function() {
+    // Update balance status when amounts change
+    $(document).on('input', 'input.debit_subtotal, input.credit_subtotal', function() {
+        setTimeout(updateBalanceStatus, 100);
+    });
+});
+
+</script>
+
+<style>    /* OVERWRITE metronic/select2 default styles */
+    body .select2-container--default .select2-results__option--highlighted[aria-selected="false"],
+    body .select2-container--default .select2-results__option--highlighted {
+        background-color: #6366f1 !important;
+        color: #fff !important;
+    }
+
+    /* Custom keyboard hover effect */
+    .select2-results__option.keyboard-hover {
+        background-color: #6366f1 !important;
+        color: #fff !important;
+    }
+
+    /* Ensure the highlighted option is always visible */
+    .select2-results__option--highlighted,
+    .select2-results__option.keyboard-hover {
+        background-color: #6366f1 !important;
+        color: #fff !important;
+    }</style>
+{% endblock %}
+
+
+
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block pagetitle %}Bill Summary Details{% endblock %}
+{% block content %}
+
+{% include 'components/title_bar.html' with title='Bill Summary Details' subtitle_date="True" %}
+
+<div class="card">
+
+{% include 'components/search_filter.html' with show_terminal="yes" search_title="Search Customer" export_url="payment_mode_summary" object_list="true" format="xls" payment_mode="yes" %}
+
+<div class="card-body pt-0">
+<div class="table-responsive">
+
+<table class="table table-bordered">
+<thead>
+<tr>
+    <th>Date</th>
+    <th>Invoice</th>
+    <th>Customer</th>
+    <th>Sub Total</th>
+    <th>Discount</th>
+    <th>Excise Duty Amount</th>
+    <th>VAT</th>
+    <th>Grand Total</th>
+    <th>Payment Mode</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% for bill in object_list %}
+
+<!-- ✅ BILL ROW -->
+<tr style="background:#f5f5f5; font-weight:600;">
+    <td>{{ bill.transaction_date|date:"d/m/Y" }}</td>
+    <td>{{ bill.invoice_number }}</td>
+    <td>{{ bill.customer_name }}</td>
+    <td>{{ bill.sub_total|floatformat:2 }}</td>
+    <td>{{ bill.discount_amount|floatformat:2 }}</td>
+    <td>{{ bill.excise_duty_amount|floatformat:2 }}</td>
+    <td>{{ bill.tax_amount|floatformat:2 }}</td>
+    <td>{{ bill.grand_total|floatformat:2 }}</td>
+    <td>{{ bill.payment_mode }}</td>
+</tr>
+
+<!-- ✅ ITEM HEADER -->
+<tr>
+    <td colspan="8" style="padding:0;">
+        <table class="table table-sm mb-0">
+            <thead style="background:#e9ecef;">
+                <tr>
+                    <th style="width:40%;">Item</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            {% for item in bill.bill_items.all %}
+            <tr>
+                <td>{{ item.product_title }}</td>
+                <td>{{ item.product_quantity }}</td>
+                <td>{{ item.rate }}</td>
+                <td>{{ item.amount }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4">No items</td>
+            </tr>
+            {% endfor %}
+
+            </tbody>
+        </table>
+    </td>
+</tr>
+
+{% endfor %}
+
+<!-- ✅ TOTAL ROW -->
+{% if object_list %}
+<tr style="background:#dfe6e9; font-weight:bold;">
+    <td>Total</td>
+    <td></td>
+    <td></td>
+    <td>{{ total.sub_total|floatformat:2 }}</td>
+    <td>{{ total.discount_amount|floatformat:2 }}</td>
+    <td>{{ total.excise_duty_amount|floatformat:2 }}</td>
+    <td>{{ total.tax_amount|floatformat:2 }}</td>
+    <td>{{ total.grand_total|floatformat:2 }}</td>
+    <td></td>
+</tr>
+{% endif %}
+
+</tbody>
+</table>
+
+</div>
+
+{% include 'pagination.html' %}
+
+</div>
+</div>
+
+{% endblock %}

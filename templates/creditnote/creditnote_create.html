@@ -1,0 +1,354 @@
+{% extends 'base.html' %}
+
+{% block pagetitle %}Credit Note Create{% endblock %}
+{% block home %}{% url 'creditnote_create' %}{% endblock %}
+{% block title %}Credit Note Create{% endblock %}
+{% block content %}
+<html>
+<div class="container mt-4">
+    <h1 class="mb-4">Create Credit Note</h1>
+
+    <form id="creditNoteForm" method="post" action="{% url 'creditnote_create' %}">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col-md-6">
+                <label for="customer">Customer</label>
+                <select id="customer" name="customer" class="form-select" data-control="select2" data-placeholder="Select Customer"></select>
+            </div>
+            <div class="col-md-6">
+                <label for="customer_name">Customer Name</label>
+                <input type="text" id="customer_name" name="customer_name" class="form-control" readonly>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <label for="customer_pan">Customer PAN</label>
+                <input type="text" id="customer_pan" name="customer_pan" class="form-control" readonly>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <label for="bill_no">Reference Bill No</label>
+                <input type="text" id="bill_no" name="bill_no" class="form-control" required>
+            </div>
+        </div>
+
+        <div id="productEntries">
+            <div class="row mt-3 product-entry">
+                <div class="col-md-12">
+                    <label for="product">Product</label>
+                    <select id="product" name="product" class="form-select" data-control="select2" data-placeholder="None"></select>
+                </div>
+                <div class="col-md-2">
+                    <label for="rate">Rate</label>
+                    <input type="number" id="rate" name="rate" class="form-control">
+                </div>
+                <div class="col-md-2">
+                    <label for="quantity">Quantity</label>
+                    <input type="number" id="quantity" name="quantity" class="form-control" value="1">
+                </div>
+                <div class="col-md-2">
+                    <label for="total">Total</label>
+                    <input type="number" id="total" name="total" class="form-control">
+                </div>
+                <div class="col-md-2">
+                    <label for="vat">Vat</label>
+                    <input type="number" id="vat" name="vat" class="form-control">
+                </div>
+                <div class="col-md-2">
+                    <label for="grand_total">Grand Total</label>
+                    <input type="number" id="grand_total" name="grand_total" class="form-control">
+                </div>
+                <div class="col-md-2 mt-6">
+                    <button type="button" class="btn btn-primary add-product">Add to Table</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <table id="productTable" class="table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Rate</th>
+                            <th>Quantity</th>
+                            <th>Total</th>
+                            <th>Vat</th>
+                            <th>Grand Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <button type="submit" class="btn btn-info">Save</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Include jQuery if it's not already included -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Include Bootstrap JS if not already included -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script type="text/javascript">
+$(document).ready(function() {
+    // Fetch and populate customers
+    $.ajax({
+        url: "{% url 'customer_list' %}",
+        type: 'GET',
+        success: function(data) {
+            let customerSelect = $('#customer');
+            customerSelect.empty();  // Clear existing options
+            customerSelect.append('<option value="">Select Customer</option>');  // Add default option
+            if (data && Array.isArray(data)) {
+                $.each(data, function(index, customer) {
+                    customerSelect.append('<option value="' + customer.id + '">' + customer.name + '</option>');
+                });
+            } else {
+                console.error('Unexpected data format:', data);
+            }
+        },
+        error: function() {
+            console.error('Failed to fetch customer data.');
+        }
+    });
+
+    // Fetch and populate products
+    function populateProducts() {
+        $.ajax({
+            url: "{% url 'api_product_list' %}",
+            type: 'GET',
+            success: function(data) {
+                $('.form-select[data-placeholder="None"]').each(function() {
+                    let productSelect = $(this);
+                    productSelect.empty();
+                    productSelect.append('<option value="">None</option>');
+                    if (data && Array.isArray(data.results)) {
+                        $.each(data.results, function(index, product) {
+                            productSelect.append('<option value="' + product.id + '">' + product.title + '</option>');
+                        });
+                    } else {
+                        console.error('Unexpected data format:', data);
+                    }
+                });
+            }
+        });
+    }
+    populateProducts();
+
+    // Fetch and populate customer details on customer selection
+    $('#customer').on('change', function() {
+        let customerId = $(this).val();
+        if (customerId) {
+            $.ajax({
+                url: "{% url 'customer_detail' pk=0 %}".replace('0', customerId),
+                type: 'GET',
+                success: function(data) {
+                    $('#customer_name').val(data.name);
+                    $('#customer_pan').val(data.tax_number);
+                },
+                error: function() {
+                    $('#customer_name').val('');
+                    $('#customer_pan').val('');
+                }
+            });
+        } else {
+            $('#customer_name').val('');
+            $('#customer_pan').val('');
+        }
+    });
+
+    // Fetch and populate rate on product selection
+    $('#product').on('change', function() {
+        let productId = $(this).val();
+        if (productId) {
+            $.ajax({
+                url: "{% url 'api_product_detail' pk=0 %}".replace('0', productId),
+                type: 'GET',
+                success: function(data) {
+                    $('#rate').val(data.price);
+                    updateTotal();  // Update total when product is changed
+                },
+                error: function() {
+                    console.error('Failed to fetch product details.');
+                    $('#rate').val('');
+                    updateTotal();  // Ensure total is updated
+                }
+            });
+        } else {
+            $('#rate').val('');
+            updateTotal();  // Ensure total is updated
+        }
+    });
+
+    // Calculate and populate the total field
+    function updateTotal() {
+        let rate = parseFloat($('#rate').val()) || 0;
+        let quantity = parseInt($('#quantity').val()) || 0;
+        let total = rate * quantity;
+        let vat = 0.13 * total;
+        let grand_total = total + vat;
+        $('#total').val(total.toFixed(2));
+        $('#vat').val(vat.toFixed(2));
+        $('#grand_total').val(grand_total.toFixed(2));
+    }
+
+    // Bind updateTotal function to rate and quantity changes
+    $('#rate, #quantity').on('input', updateTotal);
+
+
+
+    // Add product to table
+    $(document).on('click', '.add-product', function() {
+        let productEntry = $(this).closest('.product-entry');
+        let productId = productEntry.find('[name$="product"]').val();
+        let rate = parseFloat(productEntry.find('[name$="rate"]').val()) || 0;
+        let quantity = parseInt(productEntry.find('[name$="quantity"]').val()) || 0;
+        let total = rate * quantity;
+        let vat = 0.13 * total;
+        let grand_total = total + vat;
+
+        let productName = productEntry.find('[name$="product"] option:selected').text();
+        let customerName = $('#customer_name').val();
+        let customerPAN = $('#customer_pan').val();
+        let bill_no = $('#bill_no').val();
+
+        if (rate > 0 && quantity > 0) {
+            let newRow = `
+                <tr>
+                    <td>${productName}</td>
+                    <td>${rate.toFixed(2)}</td>
+                    <td>${quantity}</td>
+                    <td>${total.toFixed(2)}</td>
+                    <td>${vat.toFixed(2)}</td>
+                    <td>${grand_total.toFixed(2)}</td>
+                    <td><button type="button" class="btn btn-danger remove-product">Remove</button></td>
+                </tr>
+            `;
+            $('#productTable tbody').append(newRow);
+            // Reset the product entry fields
+            productEntry.find('[name$="product"]').val('');
+            productEntry.find('[name$="rate"]').val('');
+            productEntry.find('[name$="quantity"]').val('1'); // Reset quantity to 1
+            productEntry.find('[name$="product"]').trigger('change'); // Update placeholder
+            // Repopulate products for the next entry
+            populateProducts();
+
+        } else {
+            alert('Please fill out all fields correctly.');
+        }
+    });
+
+    // Remove product from table
+    $(document).on('click', '.remove-product', function() {
+        $(this).closest('tr').remove();
+    });
+
+    // Handle form submission
+    $('#creditNoteForm').on('submit', function(event) {
+        event.preventDefault(); // Prevent the default form submission
+        $.ajaxSetup({
+        headers: { "X-CSRFToken": '{{csrf_token}}' }
+      });
+        // collect products
+        let products = [];
+
+
+        // Collect customer data
+        let customerId = $('#customer').val();
+        let customerName = $('#customer_name').val();
+        let customerPAN = $('#customer_pan').val();
+
+        //Collect bill data
+        let bill_no = $('#bill_no').val();
+
+        $('#productTable tbody tr').each(function() {
+            let row = $(this);
+            let product = {
+                title: row.find('td').eq(0).text(), // product name
+                rate: parseFloat(row.find('td').eq(1).text()), // rate
+                quantity: parseInt(row.find('td').eq(2).text()), // quantity
+                total: parseFloat(row.find('td').eq(3).text()), // total
+                vat: parseFloat(row.find('td').eq(4).text()), // vat
+                grand_total: parseFloat(row.find('td').eq(5).text()), // vat
+            };
+            products.push(product);
+        });
+
+        // Prepare data for submission
+        let postData = {
+            customer: {
+                id: customerId,
+                customer_name: customerName,
+                customer_pan: customerPAN,
+                ref_billno:bill_no,
+            },
+            products: products
+        };
+
+        console.log(postData)
+
+        // Add products as hidden input fields
+        $('<input>').attr({
+            type: 'hidden',
+            name: 'products',
+            value: JSON.stringify(products)
+        }).appendTo('#creditNoteForm');
+
+        // Send AJAX request to the API
+        $.ajax({
+            url: `/api/add-creditnote/`, // API endpoint
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(postData),
+            // success: function(response) {
+            //     alert('Credit note created successfully.');
+            //     // Optionally, redirect or clear the form
+            //     window.location.href = "{% url 'creditnote_list' %}";
+            //     // $('#creditNoteForm')[0].reset();
+            // },
+            // error: function(xhr, status, error) {
+            //     console.error('Failed to create credit note:', error);
+            //     alert('Failed to create credit note. Please try again.');
+            // }
+            success: function (result) {
+            var creditnoteId = result.creditnote //Get the created creditnote id from the response
+            Swal.fire({
+            position: 'top-end',
+            icon: 'success',
+            title: 'Credit note created successfully.',
+            showConfirmButton: false,
+            timer: 1000,
+            willClose: () => {
+                // Redirect to the credit note list page
+                window.location.href = `/creditnote/${creditnoteId}`
+            }
+            })
+        },
+        error: function(result){
+            Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: 'Something went wrong!'
+            })
+        }
+        });
+
+        // this.submit(); // Submit the form
+    });
+});
+
+</script>
+
+</html>
+
+{%endblock%}

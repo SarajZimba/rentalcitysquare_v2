@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Purchase Returns{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Purchase Returns / Debit Notes</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>Return ID</th>
+                            <th>Purchase ID</th>
+                            <th>Bill No</th>
+                            <th>Vendor Name</th>
+                            <th>Return Date</th>
+                            <th>Items Returned</th>
+                            <th>Total Return Amount</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for return_group in purchase_returns %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ return_group.purchase_id }}</td>
+                            <td>{{ return_group.purchase_details.bill_no }}</td>
+                            <td>{{ return_group.purchase_details.vendor.name }}</td>
+                            <td>
+                                {% with first_return=return_group.return_items.first %}
+                                    {{ first_return.bill_date|default:"-" }}
+                                {% endwith %}
+                            </td>
+                            <td>{{ return_group.items_count }}</td>
+                            <td class="text-end">Rs. {{ return_group.total_return_amount|floatformat:2 }}</td>
+                            <td>
+                                {% if return_group.purchase_details.status %}
+                                    <span class="badge badge-success">Active</span>
+                                {% else %}
+                                    <span class="badge badge-danger">Void</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'purchase_return_detail' return_group.purchase_id %}" 
+                                   class="btn btn-sm btn-primary">
+                                    View Return Details
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center">No purchase returns found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+from api.views.bill import (
+    BillInfo,
+    PaymentTypeList,
+    BillAPI,
+    TblTaxEntryAPI,
+    TblSalesEntryAPI,
+    TablReturnEntryAPI,
+    TblTaxEntryUpdateView,
+    BulkBillCreateView,
+    BillCheckSumView
+)
+from django.urls import path
+from rest_framework import routers
+
+router = routers.DefaultRouter()
+
+router.register("bill", BillAPI)
+router.register("tax-entry", TblTaxEntryAPI)
+router.register("sales-entry", TblSalesEntryAPI)
+router.register("return-entry", TablReturnEntryAPI)
+
+urlpatterns = [
+    path("payment-list/", PaymentTypeList.as_view(), name="api_payment_type_list"),
+    path("bill-info/", BillInfo.as_view(), name="api_bill_info"),
+    path('v2/tax-entry/<str:bill_no>/', TblTaxEntryUpdateView.as_view(), name="api_bill_void"),
+    path('bulk-bill-create/', BulkBillCreateView.as_view(), name="bulk_bill_create"),
+    path('bill-checksum/', BillCheckSumView.as_view(), name="api_bill_checksum"),
+
+] + router.urls
+
+from api.views.bill import FixJournalEntryEntryDateForBills, Pur
+urlpatterns += [
+    path("fix-entrydate-journal-bill/", FixJournalEntryEntryDateForBills.as_view(), name="fix_entrydate_journal_bill"),
+    path("fix-entrydate-journal-purchase/", Pur.as_view(), name="fix_entrydate_journal_purchase"),
+] 
+
+
+
+from api.views.bill import AddCreditNote
+
+urlpatterns += [
+    path('add-creditnote/', AddCreditNote.as_view(), name='add_credit_note')
+]
+
+from django.urls import path
+from api.views.bill import create_bill_api
+
+urlpatterns += [
+    path("create-bill/", create_bill_api, name="create_bill_api"),
+]
+
+
+
+from api.views.bill import MarkBillVoidAPIView, IncrementBillPrintCountAPIView, IncrementBillPrintCountBulkAPIView
+
+urlpatterns += [
+    # markbillvoid voids rental bills only
+    path("bills/<int:id>/void/", MarkBillVoidAPIView.as_view(), name="api_bill_void"),
+    path('bills/increment-print-count/', IncrementBillPrintCountAPIView.as_view(), name='bill-increment-print-count'),
+    path('bulk-bills/increment-print-count/', IncrementBillPrintCountBulkAPIView.as_view(), name='bulk-bill-increment-print-count'),
+
+]

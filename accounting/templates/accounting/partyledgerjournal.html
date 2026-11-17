@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %} Create {% endblock %}
+{% block content %}
+
+<div class="card p-2">
+    <a href="#" onclick="goBack()"> Return Back</a>
+    <div class="card-body p-4 m-4">
+        <h1>Ledger - {{ ledger.ledger_name }}</h1>
+        <p>Account Chart: {{ ledger.account_chart }}</p>
+        <p>Total Value: {{ ledger.total_value }}</p>
+    </div>
+</div>
+
+<div class="card p-2">
+    <div class="card-body p-4 m-4">
+        <h1>{% if title %} {{title}} {% else %} Payment {% endif %}</h1>
+
+        <form method="POST" id="paymentForm">
+            {% csrf_token %}
+
+            <div class="row">
+                <!-- Entry Date Field -->
+                <div class="col-md-12 mb-3">
+                    <label class="form-label fw-bold">Entry Date</label>
+                    <input type="date" class="form-control" name="entry_date"
+                           value="{{ request.POST.entry_date|default:''|date:'Y-m-d' }}"
+                           required>
+                </div>
+
+                <!-- Debit Ledger Selection -->
+                <div class="col-md-12 mb-3">
+                    <label class="form-label fw-bold">Select Debit Ledger</label>
+                    <select class="form-control" id="debit_ledger" name="debit_ledger" required>
+                        <option value="">----- Select Ledger -----</option>
+                        {% for ledger in paid_from %}
+                        <option value="{{ ledger.id }}">
+                            {{ ledger.ledger_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Debit Subledger Field (dynamically shown) -->
+                <div class="col-md-12 mb-3" id="debit_subledger_container" style="display: none;">
+                    <label class="form-label fw-bold">Select Debit Subledger</label>
+                    <select class="form-control" id="debit_subledger" name="debit_subledger">
+                        <option value="">----- No Subledger -----</option>
+                    </select>
+                    <div id="debit_loading" style="display: none; color: #666; font-size: 14px;">
+                        <i class="fa fa-spinner fa-spin"></i> Loading subledgers...
+                    </div>
+                </div>
+
+                <!-- Credit Subledger Field (for the selected/paying ledger) -->
+                <div class="col-md-12 mb-3" id="credit_subledger_container" style="display: none;">
+                    <label class="form-label fw-bold">Select Credit Subledger</label>
+                    <select class="form-control" id="credit_subledger" name="credit_subledger">
+                        <option value="">----- No Subledger -----</option>
+                    </select>
+                    <div id="credit_loading" style="display: none; color: #666; font-size: 14px;">
+                        <i class="fa fa-spinner fa-spin"></i> Loading subledgers...
+                    </div>
+                </div>
+
+                <!-- Amount Field -->
+                <div class="col-md-12 mb-3">
+                    <label class="form-label fw-bold">Amount</label>
+                    <input type="number" step="0.01" class="form-control" min="0"
+                           name="amount" required placeholder="Enter amount">
+                </div>
+
+                <!-- Particular Field -->
+                <div class="col-md-12 mb-3">
+                    <label class="form-label fw-bold">Particular</label>
+                    <input class="form-control" type="text" id="particular"
+                           name="particular" required placeholder="Enter particulars">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    // Placed directly in the content block (not a separate extra_js block)
+    // so it renders regardless of what script-blocks base.html defines.
+    const subledgerApiUrl = "{{ subledger_api_url }}";
+    const currentLedgerId = {{ ledger.id }};
+
+    console.log('=== Subledger Debug Info ===');
+    console.log('API URL:', subledgerApiUrl);
+    console.log('Current Ledger ID:', currentLedgerId);
+    console.log('=============================');
+
+    async function fetchSubledgersForLedger(ledgerId, loadingElement) {
+        console.log(`Fetching subledgers for ledger ID: ${ledgerId}`);
+
+        if (loadingElement) {
+            loadingElement.style.display = 'block';
+        }
+
+        try {
+            const response = await fetch(subledgerApiUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
+
+            console.log(`API Response Status: ${response.status} ${response.statusText}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('API Response Data:', data);
+
+            let subledgers = [];
+            data.forEach(item => {
+                if (item.id == ledgerId) {
+                    subledgers = item.subledgers || [];
+                }
+            });
+
+            if (loadingElement) {
+                loadingElement.style.display = 'none';
+            }
+
+            return subledgers;
+
+        } catch (error) {
+            console.error('Error fetching subledgers:', error);
+
+            if (loadingElement) {
+                loadingElement.style.display = 'none';
+            }
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger alert-dismissible fade show';
+            errorDiv.role = 'alert';
+            errorDiv.innerHTML = `
+                Failed to load subledgers: ${error.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.querySelector('.card-body').prepend(errorDiv);
+
+            return [];
+        }
+    }
+
+    function populateSubledgerDropdown(selectElement, subledgers) {
+        selectElement.innerHTML = '<option value="">----- No Subledger -----</option>';
+
+        if (subledgers && subledgers.length > 0) {
+            subledgers.forEach(function (subledger) {
+                const option = document.createElement('option');
+                option.value = subledger.id;
+                option.textContent = subledger.sub_ledger_name;
+                selectElement.appendChild(option);
+            });
+            return true;
+        }
+        return false;
+    }
+
+    async function handleDebitLedgerChange() {
+        const selectedId = document.getElementById('debit_ledger').value;
+        const subledgerContainer = document.getElementById('debit_subledger_container');
+        const subledgerSelect = document.getElementById('debit_subledger');
+        const loadingElement = document.getElementById('debit_loading');
+
+        console.log('Debit ledger changed to ID:', selectedId);
+
+        if (!selectedId) {
+            subledgerContainer.style.display = 'none';
+            return;
+        }
+
+        subledgerContainer.style.display = 'block';
+
+        const subledgers = await fetchSubledgersForLedger(selectedId, loadingElement);
+        const hasSubledgers = populateSubledgerDropdown(subledgerSelect, subledgers);
+
+        subledgerContainer.style.display = hasSubledgers ? 'block' : 'none';
+    }
+
+    async function initializeCreditSubledger() {
+        console.log('Initializing credit subledger for ledger ID:', currentLedgerId);
+
+        const creditContainer = document.getElementById('credit_subledger_container');
+        const creditSelect = document.getElementById('credit_subledger');
+        const loadingElement = document.getElementById('credit_loading');
+
+        if (!currentLedgerId) {
+            creditContainer.style.display = 'none';
+            return;
+        }
+
+        creditContainer.style.display = 'block';
+
+        const subledgers = await fetchSubledgersForLedger(currentLedgerId, loadingElement);
+        const hasSubledgers = populateSubledgerDropdown(creditSelect, subledgers);
+
+        creditContainer.style.display = hasSubledgers ? 'block' : 'none';
+    }
+
+    function init() {
+        console.log('Initializing subledger functionality');
+
+        initializeCreditSubledger();
+
+        const debitLedger = document.getElementById('debit_ledger');
+        if (debitLedger) {
+            debitLedger.addEventListener('change', handleDebitLedgerChange);
+
+            if (debitLedger.value) {
+                handleDebitLedgerChange();
+            }
+        } else {
+            console.error('Debit ledger element not found!');
+        }
+    }
+
+    // Since this script is now inline in the body (not deferred in a head
+    // block), the DOM for this page is already parsed by the time it runs.
+    // Still guard with DOMContentLoaded in case that ever changes.
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
+
+{% endblock %}

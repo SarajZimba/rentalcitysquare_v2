@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}Purchase Return Details - {{ purchase.bill_no }}{% endblock %}
+
+{% block content %}
+<style>
+    @media print {
+        @page {
+            size: A4;
+            margin: 10mm;
+        }
+    }
+</style>
+
+<div class="card mb-4" id="return-card">
+    <div class="card-body">
+        <div class="mw-lg-950px mx-auto w-100">
+            <center>
+                <h2>{{ organization.org_name }}</h2>
+                {{ organization.company_address }} | Phone: {{ organization.company_contact_number }}<br>
+                PAN: {{ organization.tax_number }}
+                <hr>
+                <h4>DEBIT NOTE / PURCHASE RETURN</h4>
+                <br>
+            </center>
+
+            <!-- Header Information -->
+            <div class="row mb-4">
+                <div class="col">
+                    <strong>Original Purchase Details:</strong><br>
+                    Purchase Bill No: <strong>{{ purchase.bill_no }}</strong><br>
+                    Purchase Date: <strong>{{ purchase.bill_date|date:"Y-m-d" }}</strong><br>
+                    Return Date: <strong>{% now "Y-m-d" %}</strong>
+                </div>
+                <div class="col text-end">
+                    <strong>Vendor Details:</strong><br>
+                    Vendor Name: <strong>{{ purchase.vendor.name }}</strong><br>
+                    Vendor PAN: <strong>{{ purchase.vendor.pan_no }}</strong><br>
+                    Vendor Address: <strong>{{ purchase.vendor.address }}</strong>
+                </div>
+            </div>
+
+            <!-- Return Items Table -->
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr class="bg-light">
+                            <th>S.N.</th>
+                            <th>Item Name</th>
+                            <th class="text-end">Quantity</th>
+                            <th class="text-end">Unit</th>
+                            <th class="text-end">Rate (Rs.)</th>
+                            <th class="text-end">Amount (Rs.)</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for return_item in returns %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ return_item.item_name }}</td>
+                            <td class="text-end">{{ return_item.quantity|floatformat:2 }}</td>
+                            <td class="text-end">{{ return_item.unit|default:"-" }}</td>
+                            <td class="text-end">{{ return_item.rate|floatformat:2 }}</td>
+                            <td class="text-end"><strong>Rs. {{ return_item.amount|floatformat:2 }}</strong></td>
+                            <td>{{ return_item.reason|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-active">
+                            <th colspan="5" class="text-end">Total Return Amount:</th>
+                            <th class="text-end">Rs. {{ total_return_amount|floatformat:2 }}</th>
+                            <th></th>
+                        </tr>
+                        {% if total_excise_duty > 0 %}
+                        <tr>
+                            <th colspan="5" class="text-end">Excise Duty (5%):</th>
+                            <th class="text-end">Rs. {{ total_excise_duty|floatformat:2 }}</th>
+                            <th></th>
+                        </tr>
+                        {% endif %}
+                        {% if total_tax_amount > 0 %}
+                        <tr>
+                            <th colspan="5" class="text-end">VAT (13%):</th>
+                            <th class="text-end">Rs. {{ total_tax_amount|floatformat:2 }}</th>
+                            <th></th>
+                        </tr>
+                        {% endif %}
+                        <tr class="bg-secondary text-white">
+                            <th colspan="5" class="text-end">Grand Total Return:</th>
+                            <th class="text-end">
+                                Rs. {{grand_total}}
+                            </th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- Summary -->
+            <div class="row mt-4">
+                <div class="col">
+                    <strong>Amount in Words:</strong> 
+                        {{ amount_in_words }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Footer Buttons -->
+<div class="d-flex flex-stack flex-wrap mt-5">
+    <div class="my-1 me-5">
+        <button type="button" class="btn btn-success my-1 me-12" onclick="printDiv('return-card');">
+            Print Debit Note
+        </button>
+        <a href="{% url 'purchase_return_list' %}" class="btn btn-secondary my-1 me-12">
+            Back to Returns List
+        </a>
+    </div>
+</div>
+
+<script>
+    function printDiv(divName) {
+        var printContents = document.getElementById(divName).innerHTML;
+        var originalContents = document.body.innerHTML;
+        document.body.innerHTML = printContents;
+        window.print();
+        document.body.innerHTML = originalContents;
+        location.reload(); // Reload to restore original content
+    }
+</script>
+{% endblock %}
